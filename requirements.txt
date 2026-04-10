@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+gspread
+oauth2client
+pydantic
+google-generativeai
+pdfplumber
+PyPDF2
+pytesseract
+pillow
+python-multipart
+sqlalchemy
+passlib
+bcrypt
+sqlalchemy
+bcrypt
+psycopg2-binary

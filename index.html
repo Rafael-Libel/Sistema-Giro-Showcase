@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no">
+    <title>Giro - Controle Logístico</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="flex flex-col h-screen overflow-hidden w-full max-w-full">
+
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+
+    <div id="telaLogin" class="fixed inset-0 bg-slate-950 flex items-center justify-center z-50 p-4">
+        <div class="card-neo p-8 w-full max-w-md rounded-2xl flex flex-col items-center">
+            <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-4 rounded-xl text-white shadow-lg shadow-indigo-600/30 mb-4"><i class="fa-solid fa-satellite-dish text-4xl"></i></div>
+            <h1 class="text-3xl font-bold text-white tracking-tight mb-1">Giro</h1>
+            <p class="text-sm text-slate-400 font-medium mb-8">Controle de Malha Logística</p>
+            
+            <div class="w-full flex flex-col gap-4">
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 block">Usuário</label><div class="relative"><i class="fa-solid fa-user absolute left-4 top-4 text-slate-500"></i><input type="text" id="loginUser" class="input-dark w-full pl-11 pr-4 py-3.5 rounded-xl text-base" placeholder="Digite seu usuário" onkeypress="if(event.key === 'Enter') fazerLogin()"></div></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 block">Senha</label><div class="relative"><i class="fa-solid fa-lock absolute left-4 top-4 text-slate-500"></i><input type="password" id="loginPass" class="input-dark w-full pl-11 pr-4 py-3.5 rounded-xl text-base" placeholder="••••••" onkeypress="if(event.key === 'Enter') fazerLogin()"></div></div>
+                <button onclick="fazerLogin()" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 text-lg">Entrar no Painel <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mobileOverlay" onclick="toggleMobileMenu()" class="fixed inset-0 bg-slate-950/80 z-[55] hidden md:hidden backdrop-blur-sm transition-opacity opacity-0"></div>
+
+    <div id="appContainer" class="hidden w-full h-full flex overflow-hidden relative min-w-0">
+        
+        <aside id="sidebar" class="fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 ease-in-out z-[60] w-72 md:w-64 bg-slate-950 border-r border-slate-800 flex flex-col justify-between h-full shadow-2xl md:shadow-none shrink-0">
+            <div class="overflow-y-auto overflow-x-hidden flex-1">
+                <div class="p-6 flex items-center justify-between border-b border-slate-800">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg text-white shadow-lg shadow-indigo-600/30"><i class="fa-solid fa-satellite-dish text-lg"></i></div>
+                        <span class="text-xl font-bold tracking-tight text-white">Giro</span>
+                    </div>
+                    <button onclick="toggleMobileMenu()" class="md:hidden text-slate-400 hover:text-white w-10 h-10 flex items-center justify-center bg-slate-900 rounded-full border border-slate-800"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                <div class="px-6 py-5 flex items-center gap-3 border-b border-slate-800/50"><div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-300 border border-slate-700 text-lg"><i class="fa-solid fa-user-astronaut"></i></div><div><p id="lblNomeUsuario" class="text-base font-bold text-white uppercase">User</p><p id="lblPerfilUsuario" class="text-[10px] font-medium text-emerald-400 uppercase tracking-widest">Perfil</p></div></div>
+                <nav class="px-4 space-y-2 mt-4 pb-4">
+                    <button id="menu-home" onclick="mudarAba('Home')" class="w-full flex items-center gap-3 px-4 py-3.5 bg-slate-800 text-indigo-400 rounded-xl font-bold border border-slate-700 transition-all shadow-sm"><i class="fa-solid fa-house w-5 text-lg"></i> Dashboard</button>
+                    <div id="grupoLogistica">
+                        <p class="text-xs font-bold text-slate-500 mb-2 px-2 mt-6 tracking-widest uppercase">Operacional</p>
+                        <button id="menu-recebimento" onclick="mudarAba('Recebimento')" class="w-full flex items-center gap-3 px-4 py-3.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl font-bold transition-all"><i class="fa-solid fa-box w-5 text-lg"></i> Recebimento</button>
+                        <button onclick="toggleSubmenuRma()" class="w-full flex items-center gap-3 px-4 py-3.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl font-bold transition-all mt-2"><i class="fa-solid fa-folder-open w-5 text-lg"></i> RMA</button>
+                        <div id="submenu-rma" class="max-h-0 opacity-0 overflow-hidden transition-all duration-300 flex flex-col gap-1 pl-9 pr-2">
+                            <button id="menu-rma-busca" onclick="mudarAba('RMA')" class="w-full flex items-center gap-3 px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-lg font-bold transition-all text-sm mt-1"><i class="fa-solid fa-magnifying-glass text-sm"></i> Busca / Edição</button>
+                            <button id="menu-visao" onclick="mudarAba('Visao')" class="w-full flex items-center gap-3 px-3 py-3 text-slate-400 hover:text-white hover:bg-slate-800/80 rounded-lg font-bold transition-all text-sm mb-1"><i class="fa-solid fa-chart-column text-sm"></i> Visão Kanban</button>
+                        </div>
+                        <p class="text-xs font-bold text-slate-500 mb-2 px-2 mt-6 tracking-widest uppercase">Controle</p>
+                        <button id="menu-mapa" onclick="mudarAba('Mapa')" class="w-full flex items-center gap-3 px-4 py-3.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl font-bold transition-all mt-1"><i class="fa-solid fa-map-location-dot w-5 text-lg"></i> Mapa Logístico</button>
+                        <button id="menu-bi" onclick="mudarAba('BI')" class="w-full flex items-center gap-3 px-4 py-3.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl font-bold transition-all mt-1"><i class="fa-solid fa-chart-pie w-5 text-lg"></i> Dashboards BI</button>
+                    </div>
+                    <div id="grupoLaboratorio">
+                        <p id="lblTituloLab" class="text-xs font-bold text-slate-500 mb-2 px-2 mt-6 tracking-widest uppercase">Técnico</p>
+                        <button id="menu-lab" onclick="mudarAba('Lab')" class="w-full flex items-center gap-3 px-4 py-3.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl font-bold transition-all mt-1"><i class="fa-solid fa-microchip w-5 text-lg"></i> Laboratório Lab</button>
+                    </div>
+                    <div id="grupoIA">
+                        <p class="text-xs font-bold text-slate-500 mb-2 px-2 mt-6 tracking-widest uppercase">Inteligência Artificial</p>
+                        <button id="menu-ia" onclick="mudarAba('IA')" class="w-full flex items-center gap-3 px-4 py-3.5 text-emerald-400 hover:text-white hover:bg-slate-800 rounded-xl font-bold transition-all mt-1 border border-emerald-500/20 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)]"><i class="fa-solid fa-wand-magic-sparkles w-5 text-lg"></i> Assistente IA</button>
+                    </div>
+                    <div id="grupoAdmin" class="hidden">
+                        <p class="text-xs font-bold text-slate-500 mb-2 px-2 mt-6 tracking-widest uppercase">Administração</p>
+                        <button id="menu-usuarios" onclick="mudarAba('Usuarios')" class="w-full flex items-center gap-3 px-4 py-3.5 text-pink-400 hover:text-white hover:bg-slate-800 rounded-xl font-bold transition-all mt-1 border border-pink-500/20 bg-pink-500/10 shadow-[0_0_15px_rgba(236,72,153,0.15)]"><i class="fa-solid fa-users-gear w-5 text-lg"></i> Gerenciar Usuários</button>                    </div>
+                </nav>
+            </div>
+            <div class="p-4 border-t border-slate-800 shrink-0"><button onclick="fazerLogout()" class="w-full flex items-center justify-center gap-2 px-4 py-3.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl font-bold transition-all text-base"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sair do Sistema</button></div>
+        </aside>
+
+        <main class="flex-1 flex flex-col h-full overflow-hidden relative w-full min-w-0 max-w-full">
+            
+            <header class="md:hidden bg-slate-950 border-b border-slate-800 p-4 flex items-center justify-between z-40 shrink-0 w-full max-w-full">
+                <div class="flex items-center gap-3">
+                    <div class="bg-gradient-to-br from-indigo-500 to-purple-600 p-2 rounded-lg text-white shadow-lg shadow-indigo-600/30"><i class="fa-solid fa-satellite-dish text-lg"></i></div>
+                    <span class="text-xl font-bold tracking-tight text-white">Giro</span>
+                </div>
+                <button onclick="toggleMobileMenu()" class="text-slate-300 hover:text-white w-12 h-12 flex items-center justify-center bg-slate-800 rounded-xl border border-slate-700"><i class="fa-solid fa-bars text-2xl"></i></button>
+            </header>
+
+            <div id="telaHome" class="flex flex-col h-full bg-slate-900 overflow-y-auto w-full max-w-full">
+                <div class="p-5 md:p-8">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h1 class="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">Painel de <span class="text-indigo-400">Controle</span></h1>
+                            <p class="text-slate-400 mb-8 font-medium text-sm md:text-base">Resumo operacional em tempo real.</p>
+                        </div>
+                        <button onclick="carregarDashboard()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-3 rounded-xl border border-slate-700 transition-colors shadow-sm" title="Atualizar Dados"><i class="fa-solid fa-rotate-right"></i></button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-8">
+                        <div class="card-neo p-5 md:p-6 rounded-2xl relative overflow-hidden group">
+                            <div class="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-colors duration-500 z-0"></div>
+                            <div class="absolute -right-4 -top-4 opacity-5 text-indigo-500 z-0"><i class="fa-solid fa-microchip text-9xl"></i></div>
+                            <div class="flex items-center gap-3 mb-4 relative z-10">
+                                <div class="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 p-2.5 rounded-lg text-indigo-400 border border-indigo-500/20"><i class="fa-solid fa-microchip text-lg"></i></div>
+                                <h3 class="text-slate-200 font-bold tracking-widest text-xs uppercase">Laboratório</h3>
+                            </div>
+                            <div class="flex justify-between items-end relative z-10">
+                                <div><p class="text-3xl md:text-4xl font-bold text-white" id="dashLabPendente">-</p><p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Pendentes / Em Teste</p></div>
+                                <div class="text-right"><p class="text-lg md:text-xl font-bold text-slate-300" id="dashLabTotal">-</p><p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Total GERAL</p></div>
+                            </div>
+                        </div>
+
+                        <div class="card-neo p-5 md:p-6 rounded-2xl relative overflow-hidden group">
+                            <div class="absolute -right-10 -top-10 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/20 transition-colors duration-500 z-0"></div>
+                            <div class="absolute -right-4 -top-4 opacity-5 text-amber-500 z-0"><i class="fa-solid fa-folder-open text-9xl"></i></div>
+                            <div class="flex items-center gap-3 mb-4 relative z-10">
+                                <div class="bg-gradient-to-br from-amber-500/20 to-orange-500/20 p-2.5 rounded-lg text-amber-400 border border-amber-500/20"><i class="fa-solid fa-folder-open text-lg"></i></div>
+                                <h3 class="text-slate-200 font-bold tracking-widest text-xs uppercase">Processo RMA</h3>
+                            </div>
+                            <div class="flex justify-between items-end relative z-10">
+                                <div><p class="text-3xl md:text-4xl font-bold text-white" id="dashRmaPendente">-</p><p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Aguardando Ação</p></div>
+                                <div class="text-right"><p class="text-lg md:text-xl font-bold text-slate-300" id="dashRmaTotal">-</p><p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Total GERAL</p></div>
+                            </div>
+                        </div>
+
+                        <div class="card-neo p-5 md:p-6 rounded-2xl relative overflow-hidden group">
+                            <div class="absolute -right-10 -top-10 w-40 h-40 bg-sky-500/10 rounded-full blur-3xl group-hover:bg-sky-500/20 transition-colors duration-500 z-0"></div>
+                            <div class="absolute -right-4 -top-4 opacity-5 text-sky-500 z-0"><i class="fa-solid fa-truck-fast text-9xl"></i></div>
+                            <div class="flex items-center gap-3 mb-4 relative z-10">
+                                <div class="bg-gradient-to-br from-sky-500/20 to-cyan-500/20 p-2.5 rounded-lg text-sky-400 border border-sky-500/20"><i class="fa-solid fa-truck-fast text-lg"></i></div>
+                                <h3 class="text-slate-200 font-bold tracking-widest text-xs uppercase">Malha Logística</h3>
+                            </div>
+                            <div class="flex justify-between items-end relative z-10">
+                                <div><p class="text-3xl md:text-4xl font-bold text-white" id="dashTransito">-</p><p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Equip. em Trânsito</p></div>
+                                <div class="text-right"><p class="text-lg md:text-xl font-bold text-slate-300" id="dashBases">-</p><p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Bases Mapeadas</p></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2 class="text-lg md:text-xl font-bold text-white mb-4 tracking-tight border-b border-slate-800 pb-2">Visualização Gráfica</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 pb-6">
+                        <div class="card-neo p-5 md:p-6 rounded-2xl flex flex-col items-center">
+                            <h3 class="text-slate-200 font-bold text-sm tracking-widest uppercase mb-6 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-indigo-500"></div> Fluxo do Laboratório</h3>
+                            <div class="w-full h-64 relative flex justify-center"><canvas id="chartLab"></canvas></div>
+                        </div>
+                        <div class="card-neo p-5 md:p-6 rounded-2xl flex flex-col items-center">
+                            <h3 class="text-slate-200 font-bold text-sm tracking-widest uppercase mb-6 flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-amber-500"></div> Distribuição de RMA</h3>
+                            <div class="w-full h-64 relative flex justify-center"><canvas id="chartRma"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="telaRecebimento" class="hidden flex-col h-full w-full max-w-full">
+                <header class="bg-slate-950 border-b border-slate-800 p-4 md:p-5 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shrink-0 w-full max-w-full">
+                    <div class="flex flex-col md:flex-row items-center gap-3 w-full md:w-1/2">
+                        <div class="relative w-full">
+                            <i class="fa-solid fa-barcode absolute left-4 top-4 text-slate-500"></i>
+                            <input type="text" id="inputBusca" placeholder="Bipar Serial ou Rastreio..." class="input-dark w-full pl-11 pr-14 py-3.5 rounded-xl text-base" onkeypress="if(event.key === 'Enter') buscar()">
+                            <button onclick="abrirCamera('busca')" class="absolute right-1 top-1 bottom-1 text-slate-300 hover:text-indigo-400 transition-colors w-12 flex items-center justify-center bg-slate-900 rounded-lg border-l border-slate-700" title="Ler com Câmera"><i class="fa-solid fa-camera text-xl"></i></button>
+                        </div>
+                        <button onclick="buscar()" class="w-full md:w-auto bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-6 py-3.5 rounded-xl font-bold transition-all shadow-sm text-base">Buscar</button>
+                    </div>
+                    <div class="flex gap-3 w-full md:w-auto justify-end">
+                        <button onclick="abrirModalLote()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3.5 rounded-xl font-bold shadow-md shadow-indigo-900/20 transition-colors flex-1 md:flex-none text-base"><i class="fa-solid fa-boxes-stacked mr-1"></i> Lote</button>
+                        <button onclick="wppDoDia()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3.5 rounded-xl font-bold shadow-md shadow-emerald-900/20 transition-colors flex-1 md:flex-none text-base"><i class="fa-brands fa-whatsapp text-xl mr-1"></i> <span id="wppCounter">Wpp (0)</span></button>
+                    </div>
+                </header>
+                <div class="flex-1 p-4 md:p-6 overflow-y-auto w-full relative">
+                    <h2 class="text-xl md:text-2xl font-bold mb-4 text-white tracking-tight shrink-0">Recepção de Equipamentos</h2>
+                    <div id="loading" class="hidden flex items-center gap-3 text-indigo-400 font-medium bg-slate-800 p-4 rounded-xl border border-slate-700 w-fit mb-4 shadow-sm text-sm z-20"><div class="loader"></div> Processando...</div>
+                    <div id="resultadoBusca" class="w-full"></div>
+                </div>
+            </div>
+
+            <div id="telaRMA" class="hidden flex-col h-full w-full max-w-full">
+                <header class="bg-slate-950 border-b border-slate-800 p-4 md:p-5 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shrink-0 w-full">
+                    <div class="flex flex-col md:flex-row items-center gap-3 w-full md:w-1/2">
+                        <div class="relative w-full"><i class="fa-solid fa-search absolute left-4 top-4 text-slate-500"></i><input type="text" id="inputBuscaRMA" placeholder="Digite RMA, Serial..." class="input-dark w-full pl-11 pr-4 py-3.5 rounded-xl text-base" onkeypress="if(event.key === 'Enter') buscarRMA()"></div>
+                        <button onclick="buscarRMA()" class="w-full md:w-auto bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-6 py-3.5 rounded-xl font-bold transition-all shadow-sm text-base">Buscar</button>
+                    </div>
+                </header>
+                <div class="flex-1 p-4 md:p-6 overflow-y-auto w-full">
+                    <h2 class="text-xl md:text-2xl font-bold mb-4 tracking-tight text-white">Edição de RMA</h2>
+                    <div id="loadingRMA" class="hidden flex items-center gap-3 text-indigo-400 font-medium bg-slate-800 p-4 rounded-xl border border-slate-700 w-fit mb-4 shadow-sm text-sm"><div class="loader"></div> Vasculhando...</div>
+                    <div id="formRMA" class="hidden flex-col gap-5 max-w-6xl w-full">
+                        <div class="card-neo p-4 md:p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3"><div><p class="text-[10px] text-slate-400 font-bold tracking-widest mb-1">IDENTIFICAÇÃO RMA</p><h3 id="lblRmaIdentificacao" class="text-2xl font-bold text-white">N/D</h3><p id="lblRmaChamado" class="text-sm text-slate-400 font-medium mt-1">CHAMADO: N/D | CONTROLE: N/D</p></div><div id="bannerStatusRMA" class="px-5 py-3 rounded-xl font-bold text-sm shadow-sm flex items-center gap-2 border w-full md:w-auto"><span id="txtBannerStatus">STATUS: N/D</span></div></div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                            <div id="blocoBad" class="card-neo p-5 rounded-2xl"><h4 class="text-slate-200 font-bold text-lg mb-4 flex items-center gap-2 border-b border-slate-700 pb-2"><i class="fa-solid fa-arrow-up-right-from-square text-slate-400"></i> BAD</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="flex flex-col gap-1.5 col-span-1 md:col-span-2"><label class="text-xs text-slate-400 font-bold tracking-widest">STATUS</label><select id="rma_5" class="input-dark rounded-xl px-4 py-3.5 text-base w-full" onchange="atualizarCoresBlocos()"><option value="">Selecione...</option><option value="FINALIZADO">FINALIZADO</option><option value="EM ESTOQUE/DESCARTE">EM ESTOQUE/DESCARTE</option><option value="EM TRATATIVA">EM TRATATIVA</option><option value="PENDENTE">PENDENTE</option><option value="N/A">N/A</option></select></div><div class="flex flex-col gap-1.5"><label class="text-xs text-slate-400 font-bold tracking-widest">NF FAISTON ➔ VITA</label><input type="text" id="rma_6" class="input-dark rounded-xl px-4 py-3.5 text-base w-full" onkeyup="atualizarCoresBlocos()"></div><div class="flex flex-col gap-1.5"><label class="text-xs text-slate-400 font-bold tracking-widest">NF VITA ➔ UPS</label><input type="text" id="rma_7" class="input-dark rounded-xl px-4 py-3.5 text-base w-full" onkeyup="atualizarCoresBlocos()"></div><div class="flex flex-col gap-1.5 col-span-1 md:col-span-2"><label class="text-xs text-slate-400 font-bold tracking-widest">SERIAL BAD GERADO</label><input type="text" id="rma_8" class="input-dark rounded-xl px-4 py-3.5 text-base w-full text-white bg-slate-900" onkeyup="atualizarCoresBlocos()"></div></div></div>
+                            <div id="blocoGood" class="card-neo p-5 rounded-2xl"><h4 class="text-slate-200 font-bold text-lg mb-4 flex items-center gap-2 border-b border-slate-700 pb-2"><i class="fa-solid fa-arrow-down-to-bracket text-slate-400"></i> GOOD</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div class="flex flex-col gap-1.5"><label class="text-xs text-slate-400 font-bold tracking-widest">PART NUMBER</label><select id="rma_9" class="input-dark rounded-xl px-4 py-3.5 text-base w-full" onchange="atualizarCoresBlocos()"><option value="">Selecione...</option><option value="MR36">MR36</option><option value="MX64">MX64</option><option value="OUTROS">OUTROS</option></select></div><div class="flex flex-col gap-1.5"><label class="text-xs text-slate-400 font-bold tracking-widest">NOVO SERIAL</label><input type="text" id="rma_10" class="input-dark rounded-xl px-4 py-3.5 text-base w-full text-white bg-slate-900" onkeyup="atualizarCoresBlocos()"></div><div class="flex flex-col gap-1.5"><label class="text-xs text-slate-400 font-bold tracking-widest">NF UPS ➔ VITA</label><input type="text" id="rma_11" class="input-dark rounded-xl px-4 py-3.5 text-base w-full text-white bg-slate-900" onkeyup="atualizarCoresBlocos()"></div><div class="flex flex-col gap-1.5"><label class="text-xs text-slate-400 font-bold tracking-widest">NF VITA ➔ FAISTON</label><input type="text" id="rma_12" class="input-dark rounded-xl px-4 py-3.5 text-base w-full text-white bg-slate-900" onkeyup="atualizarCoresBlocos()"></div><div class="flex flex-col gap-1.5 col-span-1 md:col-span-2"><label class="text-xs text-slate-400 font-bold tracking-widest">STATUS GOOD</label><select id="rma_13" class="input-dark rounded-xl px-4 py-3.5 text-base w-full" onchange="atualizarCoresBlocos()"><option value="">Selecione...</option><option value="EM ESTOQUE">EM ESTOQUE</option><option value="DEVOLVIDO">DEVOLVIDO</option><option value="PENDENTE">PENDENTE</option></select></div><div class="flex flex-col gap-1.5 col-span-1 md:col-span-2"><label class="text-xs text-slate-400 font-bold tracking-widest">STATUS GERAL</label><select id="rma_14" class="input-dark rounded-xl px-4 py-3.5 text-base w-full" onchange="atualizarCoresBlocos()"><option value="">Selecione...</option><option value="CONCLUIDO">CONCLUIDO</option><option value="PENDENTE VITA EMITIR NF DO GOOD">PENDENTE VITA EMITIR NF DO GOOD</option><option value="AGUARDANDO COLETA UPS">AGUARDANDO COLETA UPS</option></select></div></div></div>
+                        </div>
+                        <div class="flex justify-end mt-2"><button id="btnSalvarRMA" onclick="salvarRMA()" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-base px-8 py-4 rounded-xl shadow-md flex items-center justify-center gap-2"><i class="fa-solid fa-floppy-disk"></i> SALVAR ALTERAÇÕES</button></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="telaVisao" class="hidden flex-col h-full w-full max-w-full"><header class="bg-slate-950 border-b border-slate-800 p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shrink-0"><h2 class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2"><i class="fa-solid fa-chart-column text-indigo-400"></i> Kanban (RMAs)</h2><button onclick="carregarKanban()" class="w-full md:w-auto bg-slate-800 hover:bg-slate-700 text-white px-6 py-3.5 rounded-xl text-base font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-rotate-right"></i> Atualizar Dados</button></header><div class="flex-1 p-4 md:p-6 overflow-hidden flex flex-col relative w-full"><div id="loadingVisao" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-3 text-indigo-400 font-medium bg-slate-800 p-4 rounded-2xl shadow-2xl z-20 text-sm"><div class="loader"></div> Carregando...</div><div class="flex-1 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6 overflow-y-auto md:overflow-hidden pb-2 w-full"><div class="flex flex-col min-h-[300px] h-full card-neo border-t-4 border-t-blue-500 shadow-lg"><div class="p-3 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center"><h3 class="font-bold text-slate-200 text-xs md:text-sm uppercase"><i class="fa-solid fa-headset text-blue-400"></i> Faiston</h3><span id="countFaiston" class="bg-slate-900 border border-slate-700 text-slate-300 text-xs px-2 py-1 rounded-full font-bold">0</span></div><div id="colFaiston" class="flex-1 overflow-y-auto p-3 flex flex-col gap-3 kanban-scroll bg-slate-900/30"></div></div><div class="flex flex-col min-h-[300px] h-full card-neo border-t-4 border-t-emerald-500 shadow-lg"><div class="p-3 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center"><h3 class="font-bold text-slate-200 text-xs md:text-sm uppercase"><i class="fa-solid fa-hospital text-emerald-400"></i> Vita</h3><span id="countVita" class="bg-slate-900 border border-slate-700 text-slate-300 text-xs px-2 py-1 rounded-full font-bold">0</span></div><div id="colVita" class="flex-1 overflow-y-auto p-3 flex flex-col gap-3 kanban-scroll bg-slate-900/30"></div></div><div class="flex flex-col min-h-[300px] h-full card-neo border-t-4 border-t-purple-500 shadow-lg"><div class="p-3 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center"><h3 class="font-bold text-slate-200 text-xs md:text-sm uppercase"><i class="fa-solid fa-truck text-purple-400"></i> UPS</h3><span id="countUps" class="bg-slate-900 border border-slate-700 text-slate-300 text-xs px-2 py-1 rounded-full font-bold">0</span></div><div id="colUps" class="flex-1 overflow-y-auto p-3 flex flex-col gap-3 kanban-scroll bg-slate-900/30"></div></div><div class="flex flex-col min-h-[300px] h-full card-neo border-t-4 border-t-teal-500 shadow-lg"><div class="p-3 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center"><h3 class="font-bold text-slate-200 text-xs md:text-sm uppercase"><i class="fa-solid fa-check-double text-teal-400"></i> Disp.</h3><span id="countDisp" class="bg-slate-900 border border-slate-700 text-slate-300 text-xs px-2 py-1 rounded-full font-bold">0</span></div><div id="colDisp" class="flex-1 overflow-y-auto p-3 flex flex-col gap-3 kanban-scroll bg-slate-900/30"></div></div></div></div></div>
+            
+            <div id="telaMapa" class="hidden flex-col h-full w-full bg-slate-900 relative">
+                <div class="absolute top-4 left-4 right-4 md:right-auto z-20 md:w-[26rem] card-neo rounded-xl shadow-2xl flex flex-col overflow-hidden">
+                    <div class="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                        <h2 class="font-bold text-white text-base md:text-lg flex items-center gap-2"><i class="fa-solid fa-route text-indigo-400"></i> Localizador</h2>
+                        <span class="text-[10px] bg-slate-800 border border-slate-700 px-2 py-1 rounded-md font-bold" id="qtdBasesMapa">0 bases</span>
+                    </div>
+                    <div class="p-5 flex flex-col gap-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Projeto Específico</label>
+                            <select id="selectProjetoMapa" class="input-dark w-full px-4 py-3.5 rounded-xl text-base font-bold text-center mb-4 outline-none">
+                                <option value="TODOS">Todas as Bases</option>
+                                <option value="ARCOS">Somente Arcos Dourados</option>
+                                <option value="NTT">Somente NTT</option>
+                            </select>
+
+                            <div class="flex gap-2">
+                                <input type="text" id="inputCepMapa" placeholder="CEP: 01001-000" class="input-dark w-full px-4 py-3.5 rounded-xl text-base text-center" onkeypress="if(event.key === 'Enter') buscarBaseProxima()">
+                                <button onclick="buscarBaseProxima()" class="bg-indigo-600 text-white px-5 rounded-xl flex items-center justify-center text-lg"><i class="fa-solid fa-location-crosshairs"></i></button>
+                            </div>
+                        </div>
+                        <div id="cardBaseProxima" class="hidden flex-col gap-3 mt-2 pt-4 border-t border-slate-700/50">
+                            <div class="flex justify-between items-start"><span class="text-[10px] font-bold px-2 py-1 rounded-md bg-emerald-500/10 text-emerald-400" id="resTagProjeto">PROJETO</span><span class="text-[11px] font-bold text-emerald-400" id="resDistancia">0 km</span></div>
+                            <div><h3 class="text-white font-bold text-lg" id="resNomeBase">Nome</h3><p class="text-xs text-slate-400 mt-1" id="resEnderecoBase">Endereço</p></div>
+                            <a id="btnNavegarMapa" href="#" target="_blank" class="w-full mt-2 bg-indigo-600 text-white text-center py-3.5 rounded-xl text-base font-bold flex justify-center items-center gap-2 shadow-lg"><i class="fa-solid fa-diamond-turn-right"></i> Abrir Google Maps</a>
+                        </div>
+                        <div id="loaderMapa" class="hidden py-5 flex flex-col items-center gap-3"><div class="loader w-5 h-5"></div><span class="text-sm font-bold text-indigo-400">Mapeando...</span></div>
+                    </div>
+                </div>
+                <div id="mapaContainer" class="w-full h-full min-h-[300px]"></div>
+            </div>
+            
+            <div id="telaLab" class="hidden flex-col h-full w-full max-w-full"><header class="bg-slate-950 border-b border-slate-800 p-4 md:p-5 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between shrink-0"><h2 class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2"><i class="fa-solid fa-microchip text-indigo-400"></i> Bancada de Testes</h2><div class="flex flex-col md:flex-row items-center gap-3 w-full md:w-auto"><div class="relative w-full md:w-auto"><i class="fa-solid fa-search absolute left-4 top-4 text-slate-500 text-base"></i><input type="text" id="inputBuscaLab" placeholder="Serial, TK..." class="input-dark w-full md:w-64 pl-11 pr-4 py-3.5 rounded-xl text-base transition-all focus:md:w-80" onkeyup="renderizarKanbanLab()"></div><button onclick="carregarLab()" class="w-full md:w-auto bg-slate-800 text-white px-6 py-3.5 rounded-xl text-base font-bold flex items-center justify-center gap-2"><i class="fa-solid fa-rotate-right"></i> Atualizar</button></div></header><div class="flex-1 p-4 md:p-6 overflow-hidden flex flex-col relative w-full"><div id="loadingLab" class="hidden absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center gap-3 text-indigo-400 bg-slate-800 p-4 rounded-2xl z-20 text-base font-bold"><div class="loader"></div> Atualizando...</div><div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 overflow-y-auto md:overflow-hidden pb-2 w-full"><div class="flex flex-col min-h-[300px] h-full card-neo border-t-4 border-t-slate-500"><div class="p-3 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center"><h3 class="font-bold text-slate-200 text-xs md:text-sm"><i class="fa-solid fa-boxes-packing text-slate-400"></i> Fila</h3><span id="countLabFila" class="bg-slate-900 text-slate-300 text-xs px-2 py-1 font-bold rounded-full">0</span></div><div id="colLabFila" class="flex-1 overflow-y-auto p-3 flex flex-col gap-3 kanban-scroll bg-slate-900/30"></div></div><div class="flex flex-col min-h-[300px] h-full card-neo border-t-4 border-t-indigo-500"><div class="p-3 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center"><h3 class="font-bold text-slate-200 text-xs md:text-sm"><i class="fa-solid fa-microscope text-indigo-400"></i> Na Bancada</h3><span id="countLabBancada" class="bg-slate-900 text-slate-300 text-xs px-2 py-1 font-bold rounded-full">0</span></div><div id="colLabBancada" class="flex-1 overflow-y-auto p-3 flex flex-col gap-3 kanban-scroll bg-slate-900/30"></div></div><div class="flex flex-col min-h-[300px] h-full card-neo border-t-4 border-t-emerald-500"><div class="p-3 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center"><h3 class="font-bold text-slate-200 text-xs md:text-sm"><i class="fa-solid fa-clipboard-check text-emerald-400"></i> Laudo</h3><span id="countLabFim" class="bg-slate-900 text-slate-300 text-xs px-2 py-1 font-bold rounded-full">0</span></div><div id="colLabFim" class="flex-1 overflow-y-auto p-3 flex flex-col gap-3 kanban-scroll bg-slate-900/30"></div></div></div></div></div>
+
+            <div id="telaBI" class="hidden flex-col h-full w-full bg-slate-900">
+                <header class="bg-slate-950 border-b border-slate-800 p-4 md:p-5 flex items-center justify-between shrink-0">
+                    <h2 class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-400"></i> Inteligência de Negócios</h2>
+                </header>
+                <div class="flex-1 p-4 md:p-6 overflow-hidden w-full relative">
+                    <div class="w-full h-full card-neo rounded-2xl overflow-hidden bg-slate-950 border border-slate-700">
+                        <iframe title="Relatorio_Logistica" width="100%" height="100%" src="SEU_LINK_DO_POWER_BI_AQUI" frameborder="0" allowFullScreen="true"></iframe>
+                    </div>
+                </div>
+            </div>
+
+            <div id="telaIA" class="hidden flex-col h-full w-full bg-slate-900 overflow-y-auto max-w-full">
+                <header class="bg-slate-950 border-b border-slate-800 p-4 md:p-5 flex items-center justify-between shrink-0">
+                    <h2 class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles text-emerald-400"></i> Assistente IA</h2>
+                </header>
+                <div class="flex-1 p-4 md:p-8 w-full flex justify-center items-start">
+                    <div class="card-neo p-6 md:p-8 rounded-2xl w-full max-w-3xl flex flex-col gap-5 border-emerald-500/30">
+                        <div class="flex items-center gap-4 mb-2">
+                            <div class="bg-gradient-to-br from-emerald-400 to-teal-500 p-4 rounded-xl text-slate-900"><i class="fa-solid fa-robot text-2xl"></i></div>
+                            <div><h3 class="text-xl font-bold text-white">Gerador Mágico de Etiquetas</h3><p class="text-sm text-slate-400 mt-1">Descreva o que você precisa e a IA monta o layout na hora.</p></div>
+                        </div>
+                        <textarea id="inputIA" placeholder="Ex: Cria uma etiqueta de laudo BAD pro serial TSP123, modelo Cisco, motivo: queimou." class="input-dark w-full px-5 py-4 rounded-xl text-lg resize-none h-32"></textarea>
+                        <button id="btnGerarIA" onclick="processarComandoIA()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl text-lg font-bold transition-all flex items-center justify-center gap-2 mt-2"><i class="fa-solid fa-bolt"></i> Analisar e Gerar Etiqueta</button>
+                        
+                        <div class="w-full mt-6 pt-6 border-t border-emerald-500/30">
+                        <div id="dropZonePdf" class="w-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-emerald-500/40 rounded-2xl bg-emerald-500/5 hover:bg-emerald-500/10 transition-all cursor-pointer group" onclick="document.getElementById('inputPdfNf').click()">
+                            <div class="bg-slate-900 p-4 rounded-full border border-emerald-500/20 mb-4 group-hover:scale-110 transition-transform shadow-lg shadow-emerald-900/20">
+                                <i class="fa-solid fa-file-pdf text-4xl text-red-400"></i>
+                            </div>
+                            <h4 class="text-white font-bold text-lg text-center">Arraste o PDF da Nota Fiscal aqui</h4>
+                            <p class="text-sm text-slate-400 mt-1 text-center font-medium">ou clique para procurar no computador</p>
+                            <input type="file" id="inputPdfNf" accept="application/pdf" class="hidden" multiple onchange="processarPDFNf(this)">
+                        </div>
+                    </div>
+                    </div>
+                </div>
+            </div>
+            <div id="telaUsuarios" class="hidden flex-col h-full w-full bg-slate-900 overflow-y-auto max-w-full">
+                <header class="bg-slate-950 border-b border-slate-800 p-4 md:p-5 flex items-center justify-between shrink-0">
+                    <h2 class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2"><i class="fa-solid fa-users-gear text-pink-400"></i> Gestão de Equipa</h2>
+                    <button onclick="abrirModalUsuario()" class="bg-pink-600 hover:bg-pink-500 text-white px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-md flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> Novo Usuário</button>
+                </header>
+                <div class="flex-1 p-4 md:p-8 w-full">
+                    <div id="loadingUsuarios" class="hidden justify-center py-10 w-full"><div class="loader"></div></div>
+                    
+                    <div id="gridUsuarios" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                    </div>
+                </div>
+            </div>
+
+            <div id="modalScanner" class="hidden fixed inset-0 bg-slate-950/90 flex items-center justify-center z-[200] backdrop-blur-sm p-4 w-full">
+                <div class="bg-slate-900 border border-slate-700 p-5 md:p-6 rounded-2xl w-full max-w-sm shadow-2xl flex flex-col relative mx-auto">
+                    <button onclick="fecharScanner()" class="absolute top-2 right-2 text-slate-400 hover:text-white text-2xl w-12 h-12 flex items-center justify-center bg-slate-800 rounded-full z-50 shadow-md"><i class="fa-solid fa-xmark"></i></button>
+                    <h3 class="text-xl md:text-2xl font-bold text-white flex items-center gap-2 mb-5"><i class="fa-solid fa-barcode text-indigo-400"></i> Câmera</h3>
+                    <div id="interactive" class="viewport"><div class="scan-laser"></div></div>
+                    <p class="text-sm text-slate-500 text-center mt-5 font-medium">Alinhe o código na linha verde.</p>
+                </div>
+            </div>
+
+            <div id="modalLab" class="hidden fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[70] backdrop-blur-sm p-4 w-full">
+                <div class="bg-slate-900 border border-slate-700 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-2xl flex flex-col mx-auto relative card-neo">
+                    <button onclick="fecharModalLab()" class="absolute top-3 right-3 text-slate-400 hover:text-white text-2xl w-12 h-12 flex items-center justify-center bg-slate-800 rounded-full z-50 shadow-md"><i class="fa-solid fa-xmark"></i></button>
+                    <div class="flex justify-between items-center mb-5 pb-4 border-b border-slate-800"><h3 class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-file-signature text-indigo-400"></i> Laudo</h3></div>
+                    <input type="hidden" id="labLinhaOculta">
+                    <div class="flex flex-col gap-4">
+                        <div><p id="labSerialLabel" class="text-xl font-bold text-white bg-slate-950/50 p-3 rounded-xl border border-slate-800 text-center break-all">SERIAL</p></div>
+                        <div><div class="grid grid-cols-2 gap-3"><button id="btnLabGood" onclick="selecionarResultadoLab('OK')" class="py-4 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-bold text-base flex justify-center items-center gap-2"><i class="fa-solid fa-check-circle text-xl"></i> GOOD</button><button id="btnLabBad" onclick="selecionarResultadoLab('BAD')" class="py-4 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-bold text-base flex justify-center items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-xl"></i> BAD</button></div><input type="hidden" id="labResultadoOculto"></div>
+                        <div><input type="text" id="labReparo" placeholder="Condições de reparo..." class="input-dark w-full px-4 py-3.5 rounded-xl text-base"></div>
+                        <div><textarea id="labObs" placeholder="Observações..." class="input-dark w-full px-4 py-3.5 rounded-xl text-base resize-none h-20"></textarea></div>
+                        <button onclick="salvarLaudoLab()" class="w-full mt-3 bg-indigo-600 hover:bg-indigo-500 transition-colors text-white py-4 rounded-xl text-base font-bold shadow-md"><i class="fa-solid fa-cloud-arrow-up"></i> Salvar e Imprimir Etiqueta</button>
+                    </div>
+                </div>
+            </div>
+            <div id="modalNovoUsuario" class="hidden fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[200] backdrop-blur-sm p-4 w-full">
+                <div class="bg-slate-900 border border-slate-700 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-2xl flex flex-col mx-auto relative card-neo">
+                    <button onclick="fecharModalUsuario()" class="absolute top-3 right-3 text-slate-400 hover:text-white text-2xl w-12 h-12 flex items-center justify-center bg-slate-800 rounded-full z-50 shadow-md"><i class="fa-solid fa-xmark"></i></button>
+                    <div class="flex items-center gap-3 mb-5 border-b border-slate-800 pb-4"><div class="bg-pink-500/20 p-3 rounded-xl text-pink-400"><i class="fa-solid fa-user-plus text-xl"></i></div><h3 class="text-lg font-bold text-white">Novo Usuário</h3></div>
+                    
+                    <div class="flex flex-col gap-4">
+                        <div><label class="text-xs text-slate-400 font-bold tracking-widest">LOGIN DE ACESSO</label><input type="text" id="cadUser" class="input-dark w-full px-4 py-3.5 rounded-xl text-base" placeholder="Ex: joao.silva"></div>
+                        <div><label class="text-xs text-slate-400 font-bold tracking-widest">NOME COMPLETO</label><input type="text" id="cadNome" class="input-dark w-full px-4 py-3.5 rounded-xl text-base" placeholder="Ex: João da Silva"></div>
+                        <div><label class="text-xs text-slate-400 font-bold tracking-widest">SENHA</label><input type="password" id="cadPass" class="input-dark w-full px-4 py-3.5 rounded-xl text-base" placeholder="••••••"></div>
+                        <div><label class="text-xs text-slate-400 font-bold tracking-widest">PERFIL DE ACESSO</label>
+                            <select id="cadPerfil" class="input-dark w-full px-4 py-3.5 rounded-xl text-base font-bold">
+                                <option value="LOGISTICA">Equipe Logística</option>
+                                <option value="LABORATORIO">Técnico de Laboratório</option>
+                                <option value="ADMIN">Administrador (Acesso Total)</option>
+                            </select>
+                        </div>
+                        <button onclick="salvarNovoUsuario()" class="w-full mt-4 bg-pink-600 hover:bg-pink-500 transition-colors text-white py-4 rounded-xl text-base font-bold shadow-md"><i class="fa-solid fa-floppy-disk"></i> Cadastrar Usuário</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="modalResumoLab" class="hidden fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[70] backdrop-blur-sm p-4 w-full">
+                <div class="bg-slate-900 border border-slate-700 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-2xl flex flex-col relative mx-auto card-neo">
+                    <button onclick="fecharResumoLab()" class="absolute top-3 right-3 text-slate-400 hover:text-white text-2xl w-12 h-12 flex items-center justify-center bg-slate-800 rounded-full z-50 shadow-md"><i class="fa-solid fa-xmark"></i></button>
+                    <div class="flex items-center gap-3 mb-5 border-b border-slate-800 pb-4"><div class="bg-emerald-500/20 p-3 rounded-xl text-emerald-400"><i class="fa-solid fa-file-invoice text-xl"></i></div><h3 class="text-lg font-bold text-white">Resumo do Laudo</h3></div>
+                    <div class="flex flex-col gap-4">
+                        <div class="bg-slate-950/50 p-4 rounded-xl border border-slate-800"><div class="flex justify-between items-center mb-1.5"><span id="resumoLabProj" class="text-[10px] font-bold px-2 py-1 rounded bg-slate-800 text-slate-300">PROJETO</span><span id="resumoLabTk" class="text-[10px] font-bold text-slate-500">TK: 000</span></div><p id="resumoLabSerial" class="text-xl font-bold text-white break-all">SERIAL</p><p id="resumoLabEquip" class="text-xs text-slate-400 truncate mt-1">Modelo</p></div>
+                        <div id="resumoLabOcorrencia" class="w-fit text-xs font-bold px-4 py-2 rounded-lg border">OK</div>
+                        <div class="bg-slate-800/50 p-3.5 rounded-xl border border-slate-700/50"><p class="text-[10px] text-slate-400 font-bold uppercase"><i class="fa-solid fa-wrench"></i> Reparo</p><p id="resumoLabReparo" class="text-sm text-slate-200 mt-1">...</p></div>
+                        <div class="bg-slate-800/50 p-3.5 rounded-xl border border-slate-700/50"><p class="text-[10px] text-slate-400 font-bold uppercase"><i class="fa-solid fa-comment-dots"></i> Obs</p><p id="resumoLabObs" class="text-sm text-slate-200 mt-1">...</p></div>
+                    </div>
+                    
+                    <div class="flex gap-3 mt-5">
+                        <button id="btnVoltarBancada" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3.5 rounded-xl text-xs md:text-sm font-bold transition-all shadow-md"><i class="fa-solid fa-rotate-left"></i> Voltar p/ Bancada</button>
+                        <button id="btnReimprimir" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl text-xs md:text-sm font-bold transition-all shadow-md"><i class="fa-solid fa-print"></i> Reimprimir</button>
+                    </div>
+                    
+                    <button onclick="fecharResumoLab()" class="w-full mt-3 bg-slate-800 hover:bg-slate-700 text-slate-300 py-3.5 rounded-xl text-base font-bold transition-all border border-slate-700">Fechar Janela</button>
+                </div>
+            </div>
+            
+            <div id="modalLote" class="hidden fixed inset-0 bg-slate-950/80 flex items-center justify-center z-[70] backdrop-blur-sm p-4 w-full">
+                <div class="bg-slate-900 border border-slate-700 p-6 md:p-8 rounded-2xl w-full max-w-md shadow-2xl flex flex-col gap-4 mx-auto relative card-neo">
+                    <button onclick="fecharModalLote()" class="absolute top-2 right-2 text-slate-400 hover:text-white text-2xl w-12 h-12 flex items-center justify-center rounded-full z-50"><i class="fa-solid fa-xmark"></i></button>
+                    <h3 class="text-xl md:text-2xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-barcode text-indigo-400"></i> Modo Lote</h3>
+                    <p class="text-sm text-slate-400">Bipe os seriais ou use a câmera.</p>
+                    <div class="relative w-full">
+                        <input type="text" id="inputLote" placeholder="Bipar aqui..." class="input-dark w-full pl-4 pr-14 py-4 rounded-xl text-lg font-bold text-center" onkeypress="if(event.key === 'Enter') addLote()">
+                        <button onclick="abrirCamera('lote')" class="absolute right-1 top-1 bottom-1 text-slate-300 hover:text-indigo-400 transition-colors w-12 flex items-center justify-center bg-slate-900 rounded-lg border-l border-slate-700"><i class="fa-solid fa-camera text-xl"></i></button>
+                    </div>
+                    <div class="flex justify-between items-center mt-2"><span class="text-xs font-bold text-slate-400">Lidos (<span id="loteCount">0</span>)</span><button onclick="limparLote()" class="text-xs font-bold text-red-400 px-3 py-1.5 rounded-lg bg-red-500/10">Limpar Lista</button></div>
+                    <ul id="listaLote" class="bg-slate-950 border border-slate-800 rounded-xl h-40 overflow-y-auto p-3 text-sm text-slate-300"></ul>
+                    <div class="flex gap-3 mt-2">
+                        <button onclick="fecharModalLote()" class="flex-1 border border-slate-700 hover:bg-slate-800 text-white py-3.5 rounded-xl text-base font-bold">Cancelar</button>
+                        <button onclick="buscarLoteAPI()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl text-base font-bold">Buscar Todos</button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>
